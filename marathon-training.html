@@ -1,0 +1,822 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Marathon">
+<meta name="theme-color" content="#0f1923">
+<title>Marathon — Nov 22</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --bg: #0f1923; --surface: #1a2533; --surface2: #243040;
+    --border: rgba(255,255,255,0.08); --border2: rgba(255,255,255,0.15);
+    --text: #e8f4f8; --muted: #7a9ab0; --accent: #3a7bd5;
+    --accent-light: #5b9af0; --green: #1D9E75; --amber: #d4893a;
+    --pink: #c75c8a; --gray: #5a6a78; --purple: #8b6fc7;
+    --safe-top: env(safe-area-inset-top, 0px);
+    --safe-bottom: env(safe-area-inset-bottom, 0px);
+  }
+  html, body { height: 100%; background: var(--bg); color: var(--text); font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", sans-serif; -webkit-font-smoothing: antialiased; overflow: hidden; }
+  #app { display: flex; flex-direction: column; height: 100dvh; padding-top: var(--safe-top); padding-bottom: var(--safe-bottom); }
+  .header { padding: 16px 20px 12px; border-bottom: 0.5px solid var(--border); flex-shrink: 0; }
+  .header-top { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 12px; }
+  .header-title { font-size: 22px; font-weight: 700; letter-spacing: -0.5px; }
+  .header-date { font-size: 12px; color: var(--muted); margin-top: 2px; }
+  .countdown-pill { background: var(--accent); color: white; font-size: 12px; font-weight: 600; padding: 4px 10px; border-radius: 20px; white-space: nowrap; }
+  .progress-bar-wrap { margin-bottom: 4px; }
+  .progress-label { display: flex; justify-content: space-between; font-size: 11px; color: var(--muted); margin-bottom: 5px; }
+  .progress-track { height: 4px; background: var(--surface2); border-radius: 2px; overflow: hidden; }
+  .progress-fill { height: 100%; background: linear-gradient(90deg, var(--accent), var(--accent-light)); border-radius: 2px; transition: width 0.4s; }
+  .nav-tabs { display: flex; gap: 4px; padding: 10px 20px 0; border-bottom: 0.5px solid var(--border); flex-shrink: 0; overflow-x: auto; scrollbar-width: none; }
+  .nav-tabs::-webkit-scrollbar { display: none; }
+  .tab-btn { background: none; border: none; color: var(--muted); font-size: 13px; font-weight: 500; padding: 6px 10px 10px; cursor: pointer; white-space: nowrap; border-bottom: 2px solid transparent; margin-bottom: -0.5px; transition: color 0.15s; -webkit-tap-highlight-color: transparent; }
+  .tab-btn.active { color: var(--accent-light); border-bottom-color: var(--accent-light); }
+  .content { flex: 1; overflow-y: auto; -webkit-overflow-scrolling: touch; padding: 16px 20px 24px; }
+
+  .phase-label { font-size: 10px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); margin: 20px 0 8px; }
+  .phase-label:first-child { margin-top: 0; }
+
+  .week-row { display: flex; align-items: center; gap: 12px; padding: 12px 14px; background: var(--surface); border-radius: 10px; margin-bottom: 6px; cursor: pointer; border: 1px solid transparent; transition: border-color 0.15s, background 0.15s; -webkit-tap-highlight-color: transparent; }
+  .week-row:active { background: var(--surface2); }
+  .week-row.current { border-color: var(--accent); }
+  .week-row.completed { opacity: 0.55; }
+  .week-num { width: 36px; height: 36px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 700; flex-shrink: 0; }
+  .week-num.done { background: var(--surface2); color: var(--muted); }
+  .week-num.now { background: var(--accent); color: white; }
+  .week-num.upcoming { background: var(--surface2); color: var(--text); }
+  .week-num.recovery { background: rgba(90,106,120,0.3); color: var(--gray); }
+  .week-info { flex: 1; min-width: 0; }
+  .week-info-top { display: flex; align-items: baseline; gap: 8px; }
+  .week-name { font-size: 14px; font-weight: 500; }
+  .week-tag { font-size: 11px; color: var(--muted); }
+  .week-dates { font-size: 11px; color: var(--muted); margin-top: 2px; }
+  .week-right { display: flex; flex-direction: column; align-items: flex-end; gap: 4px; flex-shrink: 0; }
+  .week-miles-badge { font-size: 14px; font-weight: 700; color: var(--text); }
+  .week-miles-badge span { font-size: 11px; font-weight: 400; color: var(--muted); }
+  .week-completion-dots { display: flex; gap: 3px; }
+  .wc-dot { width: 6px; height: 6px; border-radius: 50%; }
+
+  .detail-header { display: flex; align-items: center; gap: 10px; margin-bottom: 16px; }
+  .back-btn { background: var(--surface); border: none; color: var(--accent-light); font-size: 14px; padding: 7px 12px; border-radius: 8px; cursor: pointer; -webkit-tap-highlight-color: transparent; }
+  .detail-week-title { font-size: 18px; font-weight: 700; }
+  .detail-subtitle { font-size: 13px; color: var(--muted); }
+
+  .day-card { background: var(--surface); border-radius: 10px; margin-bottom: 6px; overflow: hidden; border: 1px solid transparent; transition: border-color 0.2s, opacity 0.2s; }
+  .day-card.day-done { border-color: rgba(29,158,117,0.4); opacity: 0.75; }
+  .day-card.day-missed { border-color: rgba(212,137,58,0.35); }
+  .day-card-inner { display: flex; align-items: flex-start; gap: 12px; padding: 12px 14px; }
+  .day-check-btn { width: 28px; height: 28px; border-radius: 50%; border: 1.5px solid var(--border2); background: none; display: flex; align-items: center; justify-content: center; cursor: pointer; flex-shrink: 0; transition: background 0.15s, border-color 0.15s; -webkit-tap-highlight-color: transparent; font-size: 13px; margin-top: 2px; }
+  .day-check-btn.checked { background: var(--green); border-color: var(--green); }
+  .day-check-btn.missed { background: rgba(212,137,58,0.25); border-color: var(--amber); }
+  .day-check-btn.rest-check { border-color: rgba(255,255,255,0.12); }
+  .day-check-btn.rest-check.checked { background: var(--gray); border-color: var(--gray); }
+  .day-col { flex: 1; }
+  .day-name-row { display: flex; align-items: baseline; gap: 8px; margin-bottom: 3px; }
+  .day-name-text { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); }
+  .day-date-text { font-size: 11px; color: var(--muted); }
+  .day-desc-text { font-size: 14px; color: var(--text); line-height: 1.45; }
+  .day-desc-text.rest-text { color: var(--muted); }
+  .day-desc-text.done-text { text-decoration: line-through; color: var(--muted); }
+  .day-strength-row { display: flex; align-items: flex-start; gap: 6px; margin-top: 6px; padding-top: 6px; border-top: 0.5px solid var(--border); }
+  .strength-icon { font-size: 11px; color: var(--purple); flex-shrink: 0; margin-top: 1px; }
+  .day-strength-text { font-size: 12px; color: var(--muted); line-height: 1.4; }
+  .day-status-label { font-size: 10px; margin-top: 3px; font-weight: 500; }
+  .day-status-label.done-label { color: var(--green); }
+  .day-status-label.missed-label { color: var(--amber); }
+
+  .tip-card { background: rgba(58,123,213,0.12); border: 0.5px solid rgba(58,123,213,0.3); border-radius: 10px; padding: 12px 14px; margin-top: 16px; font-size: 13px; color: #a8c8f0; line-height: 1.6; }
+  .tip-label { font-size: 10px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: var(--accent-light); margin-bottom: 6px; }
+
+  .today-hero { background: var(--surface); border-radius: 14px; padding: 20px; margin-bottom: 12px; }
+  .today-wk-label { font-size: 11px; color: var(--muted); margin-bottom: 4px; }
+  .today-date-label { font-size: 11px; color: var(--accent-light); margin-bottom: 4px; font-weight: 600; }
+  .today-day-name { font-size: 26px; font-weight: 700; letter-spacing: -0.5px; margin-bottom: 6px; }
+  .today-workout { font-size: 15px; color: var(--muted); line-height: 1.5; margin-bottom: 8px; }
+  .today-strength { display: flex; align-items: flex-start; gap: 6px; font-size: 13px; color: var(--purple); margin-bottom: 14px; line-height: 1.4; }
+  .today-check-row { display: flex; gap: 8px; }
+  .today-check-big { flex: 1; padding: 10px; border-radius: 9px; border: 1.5px solid var(--border2); background: none; color: var(--text); font-size: 13px; font-weight: 500; cursor: pointer; -webkit-tap-highlight-color: transparent; transition: background 0.15s, border-color 0.15s; }
+  .today-check-big.btn-done { background: rgba(29,158,117,0.2); border-color: var(--green); color: var(--green); }
+  .today-check-big.btn-missed { background: rgba(212,137,58,0.15); border-color: var(--amber); color: var(--amber); }
+
+  .stat-row { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 12px; }
+  .stat-card { background: var(--surface); border-radius: 12px; padding: 14px; }
+  .stat-label { font-size: 11px; color: var(--muted); margin-bottom: 4px; }
+  .stat-value { font-size: 22px; font-weight: 700; letter-spacing: -0.5px; }
+  .stat-unit { font-size: 12px; color: var(--muted); font-weight: 400; }
+
+  .next-card { background: var(--surface); border-radius: 12px; padding: 14px; margin-bottom: 8px; }
+  .next-label { font-size: 11px; color: var(--muted); margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.06em; font-weight: 600; }
+  .next-item { display: flex; align-items: center; gap: 10px; padding: 6px 0; border-top: 0.5px solid var(--border); }
+  .next-item:first-of-type { border-top: none; }
+  .next-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--accent); flex-shrink: 0; }
+  .next-text { font-size: 13px; color: var(--text); flex: 1; }
+  .next-day-label { font-size: 11px; color: var(--muted); text-align: right; }
+
+  .tips-section { margin-bottom: 24px; }
+  .tips-section-title { font-size: 14px; font-weight: 600; margin-bottom: 10px; color: var(--accent-light); }
+  .tip-item { background: var(--surface); border-radius: 10px; padding: 13px 14px; margin-bottom: 6px; font-size: 13px; color: var(--muted); line-height: 1.6; }
+  .tip-item strong { color: var(--text); font-weight: 500; }
+
+  .race-countdown { background: linear-gradient(135deg, #0d2240, #1a3a5c); border: 0.5px solid rgba(58,123,213,0.4); border-radius: 14px; padding: 20px; text-align: center; margin-bottom: 16px; }
+  .race-days { font-size: 52px; font-weight: 800; letter-spacing: -2px; color: var(--accent-light); }
+  .race-days-label { font-size: 12px; color: var(--muted); margin-top: 2px; }
+  .race-date-text { font-size: 14px; color: var(--text); margin-top: 8px; }
+
+  .log-summary { background: var(--surface); border-radius: 12px; padding: 14px; margin-bottom: 12px; display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; text-align: center; }
+  .log-stat-val { font-size: 20px; font-weight: 700; }
+  .log-stat-lbl { font-size: 11px; color: var(--muted); margin-top: 2px; }
+  .log-stat-val.green { color: var(--green); }
+  .log-stat-val.amber { color: var(--amber); }
+  .log-stat-val.blue { color: var(--accent-light); }
+
+  .week-progress-row { display: flex; gap: 5px; margin-bottom: 14px; flex-wrap: wrap; }
+  .wp-dot { width: 10px; height: 10px; border-radius: 50%; }
+
+  /* Nutrition tab */
+  .macro-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 16px; }
+  .macro-card { background: var(--surface); border-radius: 12px; padding: 14px; }
+  .macro-label { font-size: 11px; color: var(--muted); margin-bottom: 4px; }
+  .macro-value { font-size: 18px; font-weight: 700; }
+  .macro-sub { font-size: 11px; color: var(--muted); margin-top: 2px; }
+</style>
+</head>
+<body>
+<div id="app">
+  <div class="header">
+    <div class="header-top">
+      <div>
+        <div class="header-title">Marathon Training</div>
+        <div class="header-date">Nov 22, 2026 · 26.2 miles</div>
+      </div>
+      <div class="countdown-pill" id="countdown-pill">— days out</div>
+    </div>
+    <div class="progress-bar-wrap">
+      <div class="progress-label"><span>Training progress</span><span id="progress-pct">0%</span></div>
+      <div class="progress-track"><div class="progress-fill" id="progress-fill" style="width:0%"></div></div>
+    </div>
+  </div>
+  <div class="nav-tabs">
+    <button class="tab-btn active" onclick="showTab('today')">Today</button>
+    <button class="tab-btn" onclick="showTab('plan')">Full plan</button>
+    <button class="tab-btn" onclick="showTab('nutrition')">Nutrition</button>
+    <button class="tab-btn" onclick="showTab('tips')">Tips & gear</button>
+  </div>
+  <div class="content" id="main-content"></div>
+</div>
+<script>
+const RACE_DATE = new Date('2026-11-22T07:00:00');
+const TRAIN_START = new Date('2026-07-06'); // Monday, July 6
+
+function dayKey(wn,di){return 'w'+wn+'d'+di;}
+function getDayStatus(wn,di){return localStorage.getItem(dayKey(wn,di))||'';}
+function setDayStatus(wn,di,status){if(status)localStorage.setItem(dayKey(wn,di),status);else localStorage.removeItem(dayKey(wn,di));}
+
+// Strength training: 2x/week, placed on Tue + Thu (easy run days) as add-ons.
+// Rotates between two short routines targeting runner-specific weak points
+// (glutes, hips, calves, core) with extra ankle-stability work given the pronation.
+const STRENGTH_A = "Strength A (20 min): 3x12 single-leg glute bridges, 3x10 calf raises (slow eccentric), 3x10 clamshells/side, 2x30s side plank/side";
+const STRENGTH_B = "Strength B (20 min): 3x10 Bulgarian split squats/side, 3x12 standing band hip abduction, 3x15 single-leg calf raises/side, 2x45s plank";
+const MOBILITY = "Mobility (10 min): ankle circles + resistance band inversion/eversion, calf + hip flexor stretch, foam roll IT band & calves";
+
+function buildDays(workouts) {
+  // workouts: array of 7 strings (Mon-Sun) for the run/cross-train portion
+  // returns array of {d, t, s} where s is strength/mobility note or null
+  const labels = ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
+  return workouts.map((t, i) => {
+    let s = null;
+    if (i === 1) s = STRENGTH_A; // Tuesday
+    else if (i === 3) s = STRENGTH_B; // Thursday
+    else if (i === 0 && !t.toLowerCase().startsWith('rest')) s = MOBILITY;
+    return { d: labels[i], t, s };
+  });
+}
+
+const PHASES = [
+  {
+    id:'base', name:'Base building', color:'#3a7bd5',
+    tip:'Your ankles and tendons need time to adapt even when your lungs feel fine. Keep 80% of runs conversational — you should be able to talk in full sentences. Go slower than you think.',
+    weeks:[
+      {n:1,miles:13,tag:'Walk-run',rest:false,days:buildDays([
+        'Rest or light tennis (30 min)',
+        '3 mi walk-run (2 min run / 1 min walk intervals)',
+        'Cross-train: bike or swim 30 min',
+        '3 mi walk-run, same intervals',
+        'Rest',
+        '5 mi walk-run, easy pace',
+        'Rest or gentle walk',
+      ])},
+      {n:2,miles:16,tag:'Building',rest:false,days:buildDays([
+        'Rest',
+        '4 mi easy run',
+        'Cross-train or rest',
+        '3 mi easy run',
+        'Rest',
+        '6 mi long run (walk breaks OK)',
+        'Rest',
+      ])},
+      {n:3,miles:12,tag:'Recovery',rest:true,days:buildDays([
+        'Rest',
+        '3 mi very easy run',
+        'Cross-train: yoga or bike',
+        '3 mi easy run',
+        'Rest',
+        '4 mi easy run',
+        'Rest',
+      ])},
+      {n:4,miles:18,tag:'Building',rest:false,days:buildDays([
+        'Rest',
+        '4 mi easy run',
+        'Cross-train',
+        '4 mi easy run',
+        'Rest',
+        '7 mi long run',
+        'Rest',
+      ])},
+      {n:5,miles:20,tag:'Building',rest:false,days:buildDays([
+        'Rest',
+        '4 mi easy run',
+        'Cross-train',
+        '5 mi easy run',
+        'Rest',
+        '8 mi long run',
+        'Rest',
+      ])},
+    ]
+  },
+  {
+    id:'build', name:'Build phase', color:'#1D9E75',
+    tip:"The 10% rule: don't increase weekly mileage more than 10% from the prior week. Recovery weeks every 3–4 weeks prevent injury. If your ankle feels off, rest — a day lost now beats 3 weeks lost to injury.",
+    weeks:[
+      {n:6,miles:22,tag:'Building',rest:false,days:buildDays([
+        'Rest',
+        '5 mi easy run',
+        '4 mi easy + strides',
+        '4 mi easy run',
+        'Rest',
+        '9 mi long run',
+        'Rest',
+      ])},
+      {n:7,miles:24,tag:'Building',rest:false,days:buildDays([
+        'Rest',
+        '5 mi easy run',
+        '4 mi with 2 mi tempo effort in middle',
+        '4 mi easy run',
+        'Rest',
+        '10 mi long run',
+        'Rest',
+      ])},
+      {n:8,miles:18,tag:'Recovery',rest:true,days:buildDays([
+        'Rest',
+        '4 mi easy run',
+        'Cross-train or rest',
+        '3 mi easy run',
+        'Rest',
+        '6 mi easy run',
+        'Rest',
+      ])},
+      {n:9,miles:27,tag:'Building',rest:false,days:buildDays([
+        'Rest',
+        '5 mi easy run',
+        '5 mi with 3 mi tempo',
+        '5 mi easy run',
+        'Rest',
+        '11 mi long run',
+        'Rest',
+      ])},
+      {n:10,miles:29,tag:'Building',rest:false,days:buildDays([
+        'Rest',
+        '6 mi easy run',
+        '5 mi with 3 mi tempo',
+        '5 mi easy run',
+        'Rest',
+        '12 mi long run',
+        'Rest',
+      ])},
+      {n:11,miles:31,tag:'Building',rest:false,days:buildDays([
+        'Rest',
+        '6 mi easy run',
+        '6 mi with 4 mi tempo',
+        '5 mi easy run',
+        'Rest',
+        '13 mi long run — half marathon distance!',
+        'Rest',
+      ])},
+      {n:12,miles:22,tag:'Recovery',rest:true,days:buildDays([
+        'Rest',
+        '4 mi easy run',
+        'Cross-train',
+        '4 mi easy run',
+        'Rest',
+        '8 mi easy run',
+        'Rest',
+      ])},
+    ]
+  },
+  {
+    id:'peak', name:'Peak phase', color:'#d4893a',
+    tip:"These are the hardest weeks mentally and physically. The 20-miler feels daunting — but you only need to do it once. Fuel on long runs: take a gel every 45 minutes from mile 6 onward. Hydrate every 20 minutes.",
+    weeks:[
+      {n:13,miles:33,tag:'Building',rest:false,days:buildDays([
+        'Rest',
+        '6 mi easy run',
+        '6 mi with 4 mi tempo',
+        '6 mi easy run',
+        'Rest',
+        '14 mi long run',
+        'Rest',
+      ])},
+      {n:14,miles:36,tag:'Peak build',rest:false,days:buildDays([
+        'Rest',
+        '7 mi easy run',
+        '7 mi with 5 mi at marathon pace',
+        '6 mi easy run',
+        'Rest',
+        '16 mi long run',
+        'Rest',
+      ])},
+      {n:15,miles:25,tag:'Recovery',rest:true,days:buildDays([
+        'Rest',
+        '5 mi easy run',
+        'Cross-train',
+        '5 mi easy run',
+        'Rest',
+        '10 mi easy run',
+        'Rest',
+      ])},
+      {n:16,miles:38,tag:'Peak build',rest:false,days:buildDays([
+        'Rest',
+        '7 mi easy run',
+        '7 mi with 5 mi at marathon pace',
+        '6 mi easy run',
+        'Rest',
+        '18 mi long run',
+        'Rest',
+      ])},
+      {n:17,miles:40,tag:'Peak',rest:false,days:buildDays([
+        'Rest',
+        '7 mi easy run',
+        '8 mi with 6 mi at marathon pace',
+        '6 mi easy run',
+        'Rest',
+        '20 mi long run — your peak run!',
+        'Rest',
+      ])},
+    ]
+  },
+  {
+    id:'taper', name:'Taper', color:'#5a6a78',
+    tip:"The taper is real and it works. You may feel sluggish or anxious — that's normal (runners call it 'taper madness'). Your legs are storing glycogen and recovering. Don't add extra miles to feel better. Rest is training.",
+    weeks:[
+      {n:18,miles:26,tag:'Taper begins',rest:false,days:buildDays([
+        'Rest',
+        '6 mi easy run',
+        '5 mi with 3 mi at marathon pace',
+        '5 mi easy run',
+        'Rest',
+        '10 mi long run',
+        'Rest',
+      ])},
+      {n:19,miles:16,tag:'Taper',rest:false,days:buildDays([
+        'Rest',
+        '4 mi easy run',
+        '3 mi easy with 4 strides',
+        '3 mi easy run',
+        'Rest',
+        '6 mi easy run',
+        'Rest',
+      ])},
+    ]
+  },
+  {
+    id:'race', name:'Race week', color:'#c75c8a',
+    tip:"Nothing new on race day — not shoes, socks, food, or pace strategy. Eat familiar foods. Sleep is most important Sunday and Monday before the race. Hydrate all week. Lay out your kit Friday night.",
+    weeks:[
+      {n:20,miles:8,tag:'Race week',rest:false,days:(() => {
+        const labels = ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
+        const ts = [
+          'Rest — light walk only',
+          '3 mi easy shakeout run',
+          '2 mi easy + 4 strides',
+          'Rest',
+          '2 mi very easy jog + strides, stay off feet rest of day',
+          'Rest — eat well, sleep early',
+          'RACE DAY — Nov 22, 2026',
+        ];
+        // No new strength work race week — just light mobility Tuesday
+        return ts.map((t,i) => ({d: labels[i], t, s: i===1 ? MOBILITY : null}));
+      })()},
+    ]
+  },
+];
+
+const ALL_WEEKS = [];
+PHASES.forEach(ph => ph.weeks.forEach(wk => ALL_WEEKS.push({...wk, phase: ph})));
+
+function getWeekStart(weekNum) {
+  const d = new Date(TRAIN_START);
+  d.setDate(d.getDate() + (weekNum - 1) * 7);
+  return d;
+}
+function getDateForDay(weekNum, dayIdx) {
+  const d = getWeekStart(weekNum);
+  d.setDate(d.getDate() + dayIdx);
+  return d;
+}
+function fmtShort(d) { return d.toLocaleDateString('en-US', {month:'short', day:'numeric'}); }
+function fmtFull(d) { return d.toLocaleDateString('en-US', {weekday:'long', month:'long', day:'numeric'}); }
+
+function getCurrentWeek() {
+  const now = new Date();
+  const elapsed = now - TRAIN_START;
+  if (elapsed < 0) return 1;
+  return Math.min(Math.floor(elapsed / (7*24*60*60*1000)) + 1, 20);
+}
+function getDaysUntilRace() {
+  return Math.max(0, Math.ceil((RACE_DATE - new Date()) / (1000*60*60*24)));
+}
+function getTodayDayIndex() { return new Date().getDay(); } // 0=Sun
+const JS_TO_ARR = [6,0,1,2,3,4,5];
+
+function formatWeekDates(n) {
+  const s = getWeekStart(n);
+  const e = new Date(s); e.setDate(e.getDate()+6);
+  return `${fmtShort(s)} – ${fmtShort(e)}`;
+}
+
+function getGlobalStats() {
+  let done=0, missed=0, total=0;
+  const curWk = getCurrentWeek();
+  const todayArrIdx = JS_TO_ARR[getTodayDayIndex()];
+  ALL_WEEKS.forEach(wk => {
+    wk.days.forEach((d,di) => {
+      const isPast = wk.n < curWk || (wk.n === curWk && di < todayArrIdx);
+      if (!isPast) return;
+      total++;
+      const s = getDayStatus(wk.n, di);
+      if (s==='done') done++;
+      else if (s==='missed') missed++;
+    });
+  });
+  return {done, missed, total};
+}
+
+function getWeekDots(wk) {
+  return wk.days.map((d,di) => {
+    const s = getDayStatus(wk.n, di);
+    if (s==='done') return '#1D9E75';
+    if (s==='missed') return '#d4893a';
+    const isRest = d.t.toLowerCase().startsWith('rest');
+    return isRest ? 'rgba(255,255,255,0.1)' : 'rgba(255,255,255,0.18)';
+  });
+}
+
+function getDayColor(desc, phaseColor) {
+  if (!desc || desc.toLowerCase().includes('rest')) return '#5a6a78';
+  if (desc.toLowerCase().includes('race day')) return '#c75c8a';
+  if (desc.toLowerCase().includes('long run') || desc.toLowerCase().includes('peak')) return '#d4893a';
+  if (desc.toLowerCase().includes('tempo') || desc.toLowerCase().includes('marathon pace')) return '#1D9E75';
+  if (desc.toLowerCase().includes('cross')) return '#3a7bd5';
+  return phaseColor;
+}
+
+let currentTab = 'today';
+let detailWeek = null;
+
+function showTab(tab) {
+  currentTab = tab; detailWeek = null;
+  document.querySelectorAll('.tab-btn').forEach((b,i) => {
+    b.classList.toggle('active', ['today','plan','nutrition','tips'][i]===tab);
+  });
+  render();
+}
+
+function render() {
+  const el = document.getElementById('main-content');
+  if (detailWeek !== null) { renderDetail(el); return; }
+  if (currentTab==='today') renderToday(el);
+  else if (currentTab==='plan') renderPlan(el);
+  else if (currentTab==='nutrition') renderNutrition(el);
+  else renderTips(el);
+}
+
+function renderToday(el) {
+  const curWk = getCurrentWeek();
+  const wkData = ALL_WEEKS.find(w=>w.n===curWk);
+  if (!wkData) { el.innerHTML='<p style="color:var(--muted);text-align:center;padding:40px">Training complete! Go run 26.2.</p>'; return; }
+
+  const jsDay = getTodayDayIndex();
+  const arrIdx = JS_TO_ARR[jsDay];
+  const todayDay = wkData.days[arrIdx];
+  const dayNames=['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday'];
+  const todayName = dayNames[arrIdx];
+  const status = getDayStatus(curWk, arrIdx);
+  const isRest = todayDay && todayDay.t.toLowerCase().startsWith('rest');
+  const todayDate = getDateForDay(curWk, arrIdx);
+
+  const upcoming=[];
+  for(let i=1;i<=3;i++){
+    const nextJs=(jsDay+i)%7;
+    const nextArr=JS_TO_ARR[nextJs];
+    let nextWk=curWk, nextWkData=wkData;
+    if (nextArr < arrIdx) { nextWk = curWk+1; nextWkData = ALL_WEEKS.find(w=>w.n===nextWk) || wkData; }
+    const nd = nextWkData.days[nextArr];
+    const dt = getDateForDay(nextWk, nextArr);
+    upcoming.push({name:dayNames[nextArr], desc: nd?nd.t:'Rest', date: fmtShort(dt)});
+  }
+
+  const stats = getGlobalStats();
+
+  el.innerHTML=`
+    <div class="today-hero">
+      <div class="today-wk-label">Week ${curWk} of 20 · ${wkData.phase.name}</div>
+      <div class="today-date-label">${fmtFull(todayDate)}</div>
+      <div class="today-day-name">${todayName}</div>
+      <div class="today-workout">${todayDay?todayDay.t:'Rest'}</div>
+      ${todayDay && todayDay.s ? `<div class="today-strength">＋ ${todayDay.s}</div>` : ''}
+      <div class="today-check-row">
+        <button class="today-check-big ${status==='done'?'btn-done':''}" onclick="toggleTodayStatus('done',${curWk},${arrIdx})">
+          ${status==='done'?'✓ Done':'Mark done'}
+        </button>
+        ${!isRest?`<button class="today-check-big ${status==='missed'?'btn-missed':''}" onclick="toggleTodayStatus('missed',${curWk},${arrIdx})">
+          ${status==='missed'?'✕ Missed':'Mark missed'}
+        </button>`:''}
+      </div>
+    </div>
+    <div class="log-summary">
+      <div><div class="log-stat-val green">${stats.done}</div><div class="log-stat-lbl">Completed</div></div>
+      <div><div class="log-stat-val amber">${stats.missed}</div><div class="log-stat-lbl">Missed</div></div>
+      <div><div class="log-stat-val blue">${stats.total - stats.done - stats.missed}</div><div class="log-stat-lbl">Unlogged</div></div>
+    </div>
+    <div class="stat-row">
+      <div class="stat-card">
+        <div class="stat-label">Days to race</div>
+        <div class="stat-value">${getDaysUntilRace()}<span class="stat-unit"> days</span></div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">This week's miles</div>
+        <div class="stat-value">${wkData.miles}<span class="stat-unit"> mi</span></div>
+      </div>
+    </div>
+    <div class="next-card">
+      <div class="next-label">Coming up</div>
+      ${upcoming.map(u=>`
+        <div class="next-item">
+          <div class="next-dot"></div>
+          <div class="next-text">${u.desc}</div>
+          <div class="next-day-label">${u.name}<br>${u.date}</div>
+        </div>
+      `).join('')}
+    </div>
+    <div class="tip-card">
+      <div class="tip-label">Phase tip</div>
+      ${wkData.phase.tip}
+    </div>
+  `;
+}
+
+function toggleTodayStatus(newStatus, wn, di) {
+  const cur = getDayStatus(wn, di);
+  setDayStatus(wn, di, cur===newStatus ? '' : newStatus);
+  render();
+}
+
+function renderPlan(el) {
+  const curWk = getCurrentWeek();
+  let html='';
+  PHASES.forEach(ph=>{
+    html+=`<div class="phase-label">${ph.name}</div>`;
+    ph.weeks.forEach(wk=>{
+      const isCurrent=wk.n===curWk, isDone=wk.n<curWk;
+      const numClass=isDone?'done':isCurrent?'now':wk.rest?'recovery':'upcoming';
+      const dots=getWeekDots(wk);
+      html+=`
+        <div class="week-row ${isCurrent?'current':''} ${isDone?'completed':''}" onclick="openWeek(${wk.n})">
+          <div class="week-num ${numClass}">${isDone?'✓':wk.n}</div>
+          <div class="week-info">
+            <div class="week-info-top">
+              <span class="week-name">Week ${wk.n}</span>
+              <span class="week-tag">${wk.tag}</span>
+            </div>
+            <div class="week-dates">${formatWeekDates(wk.n)}</div>
+          </div>
+          <div class="week-right">
+            <div class="week-miles-badge">${wk.miles} <span>mi</span></div>
+            <div class="week-completion-dots">
+              ${dots.map(c=>`<div class="wc-dot" style="background:${c}"></div>`).join('')}
+            </div>
+          </div>
+        </div>
+      `;
+    });
+  });
+  el.innerHTML=html;
+}
+
+function openWeek(n) { detailWeek=n; render(); }
+
+function renderDetail(el) {
+  const wk=ALL_WEEKS.find(w=>w.n===detailWeek);
+  if(!wk) return;
+  const ph=wk.phase;
+  const curWk=getCurrentWeek();
+  const jsDay=getTodayDayIndex();
+  const todayArrIdx=JS_TO_ARR[jsDay];
+
+  const days=wk.days.map((d,di)=>{
+    const isRest=d.t.toLowerCase().startsWith('rest');
+    const status=getDayStatus(wk.n,di);
+    const isDone=status==='done';
+    const isMissed=status==='missed';
+    const isToday=wk.n===curWk&&di===todayArrIdx;
+    const dt = getDateForDay(wk.n, di);
+
+    let cardClass='day-card';
+    if(isDone) cardClass+=' day-done';
+    else if(isMissed) cardClass+=' day-missed';
+
+    let checkClass='day-check-btn';
+    if(isRest) checkClass+=' rest-check';
+    if(isDone) checkClass+=' checked';
+    else if(isMissed) checkClass+=' missed';
+
+    const checkIcon=isDone?'✓':isMissed?'✕':'';
+
+    let statusLabel='';
+    if(isDone) statusLabel=`<div class="day-status-label done-label">completed</div>`;
+    else if(isMissed) statusLabel=`<div class="day-status-label missed-label">missed</div>`;
+    else if(isToday) statusLabel=`<div class="day-status-label" style="color:var(--accent-light)">today</div>`;
+
+    const descClass='day-desc-text'+(isRest?' rest-text':'')+(isDone?' done-text':'');
+    const nextStatus=isDone?(isRest?'':'missed'):(isMissed?'':'done');
+
+    return `
+      <div class="${cardClass}">
+        <div class="day-card-inner">
+          <button class="${checkClass}" onclick="cycleDayStatus(${wk.n},${di},'${nextStatus}')">${checkIcon}</button>
+          <div class="day-col">
+            <div class="day-name-row">
+              <span class="day-name-text">${d.d}${isToday?' · today':''}</span>
+              <span class="day-date-text">${fmtShort(dt)}</span>
+            </div>
+            <div class="${descClass}">${d.t}</div>
+            ${d.s ? `<div class="day-strength-row"><span class="strength-icon">＋</span><span class="day-strength-text">${d.s}</span></div>` : ''}
+            ${statusLabel}
+          </div>
+        </div>
+      </div>
+    `;
+  }).join('');
+
+  const dots=getWeekDots(wk);
+  const dotRow=dots.map((c)=>`<div class="wp-dot" style="background:${c}"></div>`).join('');
+
+  el.innerHTML=`
+    <div class="detail-header">
+      <button class="back-btn" onclick="detailWeek=null;render()">← Back</button>
+      <div>
+        <div class="detail-week-title">Week ${wk.n} · ${wk.miles} mi</div>
+        <div class="detail-subtitle" style="color:${ph.color}">${ph.name} · ${wk.tag}</div>
+      </div>
+    </div>
+    <div style="color:var(--muted);font-size:12px;margin-bottom:10px">${formatWeekDates(wk.n)}</div>
+    <div class="week-progress-row">${dotRow}</div>
+    ${days}
+    <div class="tip-card">
+      <div class="tip-label">Phase tip</div>
+      ${ph.tip}
+    </div>
+  `;
+  el.scrollTop=0;
+}
+
+function cycleDayStatus(wn, di, nextStatus) {
+  setDayStatus(wn, di, nextStatus);
+  renderDetail(document.getElementById('main-content'));
+  updateHeader();
+}
+
+function renderNutrition(el) {
+  el.innerHTML = `
+    <div class="macro-grid">
+      <div class="macro-card">
+        <div class="macro-label">Protein target</div>
+        <div class="macro-value">0.7g <span style="font-size:12px;color:var(--muted);font-weight:400">/ lb bodyweight</span></div>
+        <div class="macro-sub">Daily, spread across meals — supports muscle repair from running + strength work</div>
+      </div>
+      <div class="macro-card">
+        <div class="macro-label">Carbs (build/peak)</div>
+        <div class="macro-value">3–5g <span style="font-size:12px;color:var(--muted);font-weight:400">/ lb bodyweight</span></div>
+        <div class="macro-sub">Higher on long-run and high-mileage days; lower on rest days</div>
+      </div>
+      <div class="macro-card">
+        <div class="macro-label">Hydration</div>
+        <div class="macro-value">Half oz <span style="font-size:12px;color:var(--muted);font-weight:400">/ lb bodyweight</span></div>
+        <div class="macro-sub">Baseline daily fluid, more on hot OKC training days + during runs over 60 min</div>
+      </div>
+      <div class="macro-card">
+        <div class="macro-label">Pre-run window</div>
+        <div class="macro-value">60–90 min</div>
+        <div class="macro-sub">Before runs over 6 mi: simple carbs + small protein (toast + banana, oatmeal)</div>
+      </div>
+    </div>
+
+    <div class="tips-section">
+      <div class="tips-section-title">Base building (weeks 1–6)</div>
+      <div class="tip-item"><strong>Focus on consistency, not precision.</strong> Eat normally with a slight protein bump to support new training stress. No need to fuel mid-run yet — runs are short enough.</div>
+      <div class="tip-item"><strong>Post-run within 45 min:</strong> protein + carbs (chocolate milk, Greek yogurt + fruit, or a regular meal) to kickstart recovery, especially after strength days.</div>
+    </div>
+
+    <div class="tips-section">
+      <div class="tips-section-title">Build phase (weeks 7–14)</div>
+      <div class="tip-item"><strong>Start practicing race-day fueling</strong> on long runs over 8 miles. Begin with one gel or chew around mile 5–6, then every 45 min after.</div>
+      <div class="tip-item"><strong>Carb-load lightly</strong> the day before runs over 10 miles — extra rice, potatoes, or pasta at dinner. Nothing drastic yet.</div>
+      <div class="tip-item"><strong>Iron and electrolytes:</strong> runners (especially with rising mileage) can run low on iron. If you feel unusually fatigued, consider a blood panel. Add electrolytes to water on long runs in OKC heat.</div>
+    </div>
+
+    <div class="tips-section">
+      <div class="tips-section-title">Peak phase (weeks 15–19)</div>
+      <div class="tip-item"><strong>This is your highest-calorie-need stretch.</strong> Don't under-eat — peak weeks (36–40 mi) burn significant calories. Hunger increases; respond with more food, not less.</div>
+      <div class="tip-item"><strong>Dial in your exact race-day fueling plan</strong> during the 18-mi and 20-mi long runs. Same gel brand, same timing, same hydration setup every time — no surprises in November.</div>
+      <div class="tip-item"><strong>Magnesium and potassium</strong> (bananas, potatoes, leafy greens) help with cramping during your highest-volume weeks.</div>
+    </div>
+
+    <div class="tips-section">
+      <div class="tips-section-title">Taper (weeks 20–22)</div>
+      <div class="tip-item"><strong>Reduce portions slightly</strong> as mileage drops — appetite often stays high out of habit. Keep protein steady to preserve muscle while volume falls.</div>
+      <div class="tip-item"><strong>Begin a real carb-load 2–3 days before race day</strong> only in week 20, not now. Taper weeks are about normal, clean eating — not loading yet.</div>
+    </div>
+
+    <div class="tips-section">
+      <div class="tips-section-title">Race week</div>
+      <div class="tip-item"><strong>Wed–Fri before the race:</strong> increase carbs to 4–5g/lb bodyweight, moderate fiber and fat to avoid GI distress. Rice, pasta, bagels, bananas.</div>
+      <div class="tip-item"><strong>Race morning (3 hrs before):</strong> familiar, carb-heavy, low-fiber breakfast — oatmeal, toast with honey, or a bagel. Avoid anything new.</div>
+      <div class="tip-item"><strong>During the race:</strong> gel or chew every 45 min starting mile 4–5, water or sports drink at every aid station you've trained with.</div>
+    </div>
+
+    <div class="tips-section">
+      <div class="tips-section-title">Strength + nutrition</div>
+      <div class="tip-item"><strong>On strength days (Tue/Thu),</strong> protein timing matters slightly more — aim for 20–30g within an hour after lifting to support the glute/hip/calf work that's stabilizing your stride and ankle.</div>
+    </div>
+  `;
+}
+
+function renderTips(el) {
+  el.innerHTML=`
+    <div class="race-countdown">
+      <div class="race-days">${getDaysUntilRace()}</div>
+      <div class="race-days-label">days until race day</div>
+      <div class="race-date-text">Sunday, November 22, 2026</div>
+    </div>
+    <div class="tips-section">
+      <div class="tips-section-title">Shoes & ankle</div>
+      <div class="tip-item"><strong>Get a gait analysis.</strong> Go to a specialty running store before week 1. They'll put you on a treadmill and match you to a stability shoe for your pronation.</div>
+      <div class="tip-item"><strong>Recommended shoes:</strong> ASICS GT-2000, Brooks Adrenaline GTS, New Balance 860, or Saucony Guide. These provide medial support without being overly corrective.</div>
+      <div class="tip-item"><strong>Rotate two pairs</strong> once you're in the build phase. Alternating shoes extends foam life and reduces repetitive stress.</div>
+    </div>
+    <div class="tips-section">
+      <div class="tips-section-title">Strength training</div>
+      <div class="tip-item"><strong>Tuesday and Thursday</strong> carry built-in strength work, layered onto your easy runs. These target glutes, hips, and calves — the muscles that control pronation and stabilize your stride.</div>
+      <div class="tip-item"><strong>Sunday gets light mobility work</strong> (ankle circles, band work, foam rolling) on run days — this directly addresses your ankle pronation.</div>
+      <div class="tip-item"><strong>Do strength after the run, not before</strong> — pre-fatiguing your legs before a run increases injury risk.</div>
+    </div>
+    <div class="tips-section">
+      <div class="tips-section-title">Easy pace rule</div>
+      <div class="tip-item"><strong>80% of runs should be easy.</strong> You should be able to say full sentences without gasping. Most athletic people run too fast, burn out, and get injured. Resist the urge.</div>
+      <div class="tip-item"><strong>Tempo pace</strong> is comfortably hard — you can say a few words but not a paragraph. Used on Wednesday workouts in the build and peak phases.</div>
+    </div>
+    <div class="tips-section">
+      <div class="tips-section-title">Tennis + running</div>
+      <div class="tip-item"><strong>Tennis counts as cross-training</strong> in weeks 1–6. In weeks 7+, treat hard tennis sessions as a workout day and protect your long-run recovery.</div>
+      <div class="tip-item"><strong>Don't play a hard match and long run the same day.</strong> Your ankles and calves need 24–48 hours between high-impact sessions early on.</div>
+    </div>
+    <div class="tips-section">
+      <div class="tips-section-title">Warning signs</div>
+      <div class="tip-item"><strong>Inside ankle pain</strong> (posterior tibial tendinitis) is the classic pronation injury. Back off immediately, ice, and rest 2–3 days before returning.</div>
+      <div class="tip-item"><strong>IT band pain</strong> on the outside of the knee: foam roll your IT band, glutes, and TFL. Add hip strengthening (clamshells, side-lying raises).</div>
+      <div class="tip-item"><strong>Shin splints:</strong> reduce mileage 25%, run on softer surfaces, check that your shoes aren't worn out.</div>
+    </div>
+    <div class="tips-section">
+      <div class="tips-section-title">Race day</div>
+      <div class="tip-item"><strong>Nothing new on race day</strong> — not shoes, socks, nutrition, or clothing. Everything should be tested in training.</div>
+      <div class="tip-item"><strong>Start slow.</strong> The crowd energy will pull you out faster than planned. Your first mile should feel embarrassingly easy.</div>
+      <div class="tip-item"><strong>Break the race into thirds:</strong> miles 1–9 conservative, miles 10–18 steady, miles 19–26 give what you have left.</div>
+    </div>
+  `;
+}
+
+function updateHeader() {
+  document.getElementById('countdown-pill').textContent=`${getDaysUntilRace()}d out`;
+  const curWk=getCurrentWeek();
+  const pct=Math.min(100,Math.round((curWk-1)/20*100));
+  document.getElementById('progress-fill').style.width=pct+'%';
+  document.getElementById('progress-pct').textContent=pct+'%';
+}
+
+updateHeader();
+render();
+</script>
+</body>
+</html>
